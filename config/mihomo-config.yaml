@@ -110,7 +110,7 @@ external-controller: 127.0.0.1:9090
 proxy-providers:
   my-proxies:
     type: http
-    url: "https://msub.xn--m7r52rosihxm.com/api/v1/client/subscribe?token=c2eaf21ef8e4cb253eb744a77107e7ce"
+    url: "https://YOUR_SUB_URL/api/v1/client/subscribe?token=YOUR_TOKEN"
     interval: 3600
     path: /etc/mihomo/providers.yaml
     health-check:
