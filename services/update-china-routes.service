@@ -1,0 +1,12 @@
+[Unit]
+Description=Update China IP route data
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStartPre=-/sbin/modprobe ip_set_hash_net
+ExecStart=/usr/local/sbin/update-china-routes
+
+# 如果 ipset 还不存在（首次启动），确保它是空的也能继续
+# ipset 持久化由 netfilter-persistent 在启动时恢复

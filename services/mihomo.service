@@ -1,0 +1,29 @@
+[Unit]
+Description=Mihomo Proxy (Clash Meta)
+Documentation=https://wiki.metacubex.one/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mihomo
+Group=mihomo
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+ExecStart=/usr/local/bin/mihomo -d /etc/mihomo -f /etc/mihomo/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=1048576
+
+# 安全加固
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+# 允许写入: 配置目录 和 数据目录
+ReadWritePaths=/etc/mihomo /var/lib/mihomo
+
+[Install]
+WantedBy=multi-user.target

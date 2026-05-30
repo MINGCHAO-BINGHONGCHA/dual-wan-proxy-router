@@ -1,0 +1,10 @@
+# Force Android USB tethering RNDIS interface to be named usb0
+# RNDIS: USB Ethernet/RNDIS Gadget
+ACTION=="add", SUBSYSTEM=="net", ENV{ID_USB_DRIVER}=="rndis_host", NAME="usb0"
+
+# Alternate: match by common Android USB vendor IDs
+# Google, Samsung, Xiaomi, Huawei, OnePlus, OPPO, vivo
+ACTION=="add", SUBSYSTEM=="net", \
+    ATTRS{idVendor}=="18d1|04e8|2717|12d1|2a70|22d9|2e17", \
+    ENV{ID_USB_DRIVER}=="rndis_host", \
+    NAME="usb0"

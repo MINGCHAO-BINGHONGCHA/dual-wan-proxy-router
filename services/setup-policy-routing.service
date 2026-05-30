@@ -1,0 +1,17 @@
+[Unit]
+Description=Setup policy routing for Mihomo TUN
+After=mihomo.service
+Requires=mihomo.service
+Before=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/sbin/modprobe tun
+ExecStart=/usr/local/sbin/setup-policy-routing
+ExecStop=-/sbin/ip rule del fwmark 0x1 lookup 100
+ExecStop=-/sbin/ip rule del fwmark 0x100 lookup 200
+
+[Install]
+WantedBy=multi-user.target

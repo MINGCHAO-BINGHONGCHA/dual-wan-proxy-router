@@ -1,0 +1,69 @@
+# ============================================================
+# iptables 规则 — 智能分流路由器
+# 加载: iptables-restore < /etc/iptables/rules.v4
+# ============================================================
+
+# --- mangle 表：流量标记 ---
+*mangle
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# === 保留本地/私有地址（RETURN 不标记，放在最前面）===
+-A PREROUTING -d 192.168.0.0/16 -j RETURN
+-A PREROUTING -d 10.0.0.0/8 -j RETURN
+-A PREROUTING -d 172.16.0.0/12 -j RETURN
+-A PREROUTING -d 198.18.0.0/16 -j RETURN
+-A OUTPUT -d 192.168.0.0/16 -j RETURN
+-A OUTPUT -d 10.0.0.0/8 -j RETURN
+-A OUTPUT -d 172.16.0.0/12 -j RETURN
+-A OUTPUT -d 198.18.0.0/16 -j RETURN
+
+# === LAN 客户端 → 非中国 IP → mark 0x1 → table 100 (utun) ===
+-A PREROUTING -i enp2s0 -m set ! --match-set china_ipv4 dst -j MARK --set-mark 0x1
+
+# === Mihomo 出站全部标记 0x100 → table 200 → usb0 ===
+# DNS 层面已做国内外分流，mihomo 只处理国外流量
+-A OUTPUT -m owner --uid-owner mihomo -j MARK --set-mark 0x100
+-A OUTPUT -m owner --uid-owner mihomo -j RETURN
+
+# === 路由器自身 → 非中国 IP → mark 0x1 ===
+-A OUTPUT -m set ! --match-set china_ipv4 dst -j MARK --set-mark 0x1
+
+COMMIT
+
+# --- nat 表：地址转换 ---
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# LAN 国内流量经校园网出
+-A POSTROUTING -s 192.168.100.0/24 -o enp1s0 -j MASQUERADE
+
+# LAN 代理流量经手机出
+-A POSTROUTING -s 192.168.100.0/24 -o usb0 -j MASQUERADE
+
+# 路由器自身代理出站经手机出
+-A POSTROUTING -o usb0 -j MASQUERADE
+
+COMMIT
+
+# --- filter 表：转发规则 ---
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# LAN ↔ enp1s0（校园网）
+-A FORWARD -i enp2s0 -o enp1s0 -j ACCEPT
+-A FORWARD -i enp1s0 -o enp2s0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# LAN ↔ usb0（手机）
+-A FORWARD -i enp2s0 -o usb0 -j ACCEPT
+-A FORWARD -i usb0 -o enp2s0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+COMMIT

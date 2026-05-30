@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(systemctl status *)",
+      "Bash(journalctl -u mihomo --no-pager -n 20)",
+      "Bash(ping -c2 -W1 192.168.161.115)",
+      "Bash(dig +short baidu.com @192.168.161.115)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} time:%{time_total}s\" --connect-timeout 5 --max-time 10 --interface usb0 http://baidu.com)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} time:%{time_total}s\" --connect-timeout 5 --max-time 10 http://baidu.com)",
+      "Bash(sudo nft list table inet mihomo)"
+    ]
+  }
+}

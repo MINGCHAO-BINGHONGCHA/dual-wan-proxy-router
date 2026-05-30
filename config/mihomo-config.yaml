@@ -1,0 +1,164 @@
+# ============================================================
+# Mihomo (clash-meta) — 智能分流代理配置
+# 路径: /etc/mihomo/config.yaml
+# ============================================================
+
+mode: rule
+log-level: info
+ipv6: false
+
+# ============================================================
+# DNS（Fake-IP 模式，国内直连，国外走代理 DNS）
+# ============================================================
+dns:
+  enable: true
+  listen: 127.0.0.1:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "*.localdomain"
+    - "*.home"
+    - "*.arpa"
+    - "ntp.*"
+    - "*.ntp.org"
+    - "+.stun.*"
+    - "+.turn.*"
+    - "localhost.ptlogin2.qq.com"
+  # 首选上游（无代理时也能用）
+  default-nameserver:
+    - 114.114.114.114
+    - 223.5.5.5
+  # 按域名分流 DNS
+  nameserver-policy:
+    # 国内域名 → 国内 DNS 直连
+    "geosite:cn,private":
+      - 114.114.114.114
+      - 223.5.5.5
+      - https://dns.alidns.com/dns-query
+    # 国外域名 → 纯 IP DNS（避免 DOH 循环依赖 + 校园网封 Cloudflare）
+    "geosite:geolocation-!cn":
+      - 8.8.8.8
+      - 1.1.1.1
+      - 208.67.222.222
+
+# ============================================================
+# Sniffer（TLS SNI 嗅探，连接层防污染）
+# ============================================================
+sniffer:
+  enable: true
+  sniff:
+    TLS:
+      ports: [443, 8443]
+    HTTP:
+      ports: [80, 8080-8880]
+  force-domain:
+    - "+.google.com"
+    - "+.googleapis.com"
+    - "+.youtube.com"
+    - "+.twitter.com"
+    - "+.facebook.com"
+    - "+.github.com"
+    - "+.githubusercontent.com"
+    - "+.openai.com"
+    - "+.cloudflare.com"
+    - "+.microsoft.com"
+    - "+.apple.com"
+    - "+.reddit.com"
+    - "+.instagram.com"
+    - "+.whatsapp.com"
+    - "+.telegram.org"
+    - "+.signal.org"
+  skip-domain:
+    - "+.baidu.com"
+    - "+.taobao.com"
+    - "+.qq.com"
+    - "+.weixin.com"
+    - "+.alibaba.com"
+    - "+.bilibili.com"
+
+# ============================================================
+# TUN 模式（不使用 auto-route/auto-redirect，手动管理）
+# ============================================================
+tun:
+  enable: true
+  stack: system
+  device: utun
+  auto-route: false
+  auto-redirect: false
+  auto-detect-interface: false
+  dns-hijack:
+    - any:53
+  mtu: 9000
+
+# ============================================================
+# 入站（SOCKS5 + HTTP）
+# ============================================================
+mixed-port: 7890
+socks-port: 7891
+allow-lan: true
+bind-address: "0.0.0.0"
+
+# API 管理端口
+external-controller: 127.0.0.1:9090
+
+# ============================================================
+# 代理订阅
+# ============================================================
+proxy-providers:
+  my-proxies:
+    type: http
+    url: "https://msub.xn--m7r52rosihxm.com/api/v1/client/subscribe?token=c2eaf21ef8e4cb253eb744a77107e7ce"
+    interval: 3600
+    path: /etc/mihomo/providers.yaml
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+
+# ============================================================
+# 代理组
+# ============================================================
+proxy-groups:
+  - name: "Proxy"
+    type: select
+    use:
+      - my-proxies
+    proxies:
+      - DIRECT
+
+  - name: "Auto"
+    type: url-test
+    use:
+      - my-proxies
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+
+# ============================================================
+# 规则
+# ============================================================
+rules:
+  # 校园网 → 直连
+  - IP-CIDR,10.202.32.0/20,DIRECT
+
+  # 私有地址 → 直连
+  - IP-CIDR,192.168.100.0/24,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,169.254.0.0/16,DIRECT
+
+  # 组播/广播 → 直连
+  - IP-CIDR,224.0.0.0/4,DIRECT
+  - IP-CIDR,255.255.255.255/32,DIRECT
+
+  # 国内域名 → 直连（DNS 层面已分流，这里是保险）
+  - GEOSITE,cn,DIRECT
+  # 国内 IP → 直连（保险）
+  - GEOIP,CN,DIRECT
+
+  # 其余全部 → Auto（自动选最快节点）
+  - MATCH,Auto
